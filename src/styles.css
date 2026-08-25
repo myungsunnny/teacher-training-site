@@ -1087,6 +1087,98 @@ h3 {
   font-weight: 700;
 }
 
+.tool-inline-form {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.tool-inline-form .form-input {
+  max-width: 16rem;
+}
+
+.tool-grader-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.tool-grader-row .form-input:first-child {
+  max-width: 10rem;
+}
+
+.tool-grader-score {
+  flex: 0 0 auto;
+  min-width: 4rem;
+  color: var(--color-text-heading);
+  font-weight: 800;
+  text-align: center;
+}
+
+.tool-number-input {
+  max-width: 6rem;
+}
+
+.tool-remove-button {
+  flex: 0 0 auto;
+  width: 40px;
+  min-height: 40px;
+  color: #8a2323;
+  background: #fff1f1;
+  border: 1px solid #efb8b8;
+  border-radius: 0.5rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tool-group-grid {
+  margin-top: 1.25rem;
+}
+
+.tool-recipe {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.tool-recipe summary {
+  min-height: 44px;
+  color: var(--color-primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tool-recipe .code-block {
+  margin-top: 0.75rem;
+  margin-bottom: 0;
+}
+
+.tool-table-wrap {
+  margin-top: 1.25rem;
+  overflow-x: auto;
+}
+
+.tool-table {
+  width: 100%;
+  background: var(--color-bg);
+  border-collapse: collapse;
+}
+
+.tool-table th,
+.tool-table td {
+  min-width: 4.5rem;
+  padding: 0.6rem 0.5rem;
+  border: 1px solid var(--color-border);
+  text-align: center;
+}
+
+.tool-table th {
+  color: var(--color-text-heading);
+  background: var(--color-bg-soft);
+}
+
 .compare-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
