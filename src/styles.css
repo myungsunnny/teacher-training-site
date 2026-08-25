@@ -1151,8 +1151,15 @@ h3 {
 }
 
 .tool-recipe .code-block {
-  margin-top: 0.75rem;
+  margin: 0.75rem 0;
+}
+
+.tool-recipe .code-block:last-child {
   margin-bottom: 0;
+}
+
+.tool-recipe .example-prompt {
+  margin-top: 0.75rem;
 }
 
 .tool-table-wrap {

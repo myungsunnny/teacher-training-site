@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import CodeBlock from '../components/CodeBlock.jsx'
+import StepGuide from '../components/StepGuide.jsx'
 
 function shuffle(items) {
   const result = [...items]
@@ -11,36 +12,291 @@ function shuffle(items) {
 }
 
 const templates = [
-  ['#tool-attendance', '자동 출석부', '이름을 누르면 출석과 결석이 바뀌고 인원이 자동으로 집계돼요.'],
-  ['#tool-grader', '객관식 자동채점기', '정답표와 학생 답안을 입력하면 점수를 바로 계산해줘요.'],
-  ['#tool-groups', '모둠 자동 편성기', '학생 명단을 넣으면 무작위로 모둠을 나눠줘요.'],
-  ['#tool-timetable', '시간표 생성기', '과목과 시수를 입력하면 주간 시간표 초안을 만들어줘요.'],
+  ['#tool-attendance', '자동 출석부 웹앱', '학생이 보이는 화면에서 출석을 체크하면 스프레드시트에 기록돼요.'],
+  ['#tool-grader', '객관식 자동채점기 웹앱', '학생이 답안을 제출하면 자동으로 채점되어 시트에 쌓여요.'],
+  ['#tool-groups', '모둠 자동 편성기 웹앱', '버튼 하나로 모둠을 나누고 결과를 시트에 저장해요.'],
+  ['#tool-timetable', '시간표 생성기 웹앱', '과목표 시트를 읽어 시간표를 만들고 시트에 기록해요.'],
 ]
 
-const attendancePrompt = `구글 스프레드시트로 자동 출석부를 만들고 싶어.
+const deploySteps = [
+  { title: '구글 스프레드시트 만들기', description: '새 스프레드시트를 만들고, 각 템플릿의 "준비할 시트"에 적힌 이름대로 시트(탭)를 만들어요.' },
+  { title: 'Apps Script 열기', description: '스프레드시트 메뉴에서 확장 프로그램 → Apps Script를 선택해요.' },
+  { title: '코드 붙여넣기', description: 'Code.gs에 백엔드 코드를 붙여넣고, 파일 추가(+) → HTML로 index 파일을 만들어 index.html 코드를 붙여넣어요.' },
+  { title: '웹 앱으로 배포하기', description: '배포 → 새 배포 → 유형: 웹 앱을 선택해요. 처음 실행할 때 권한 승인 화면이 나오면 내용을 확인하고 승인해요.' },
+  { title: '주소 열어 사용하기', description: '배포가 끝나면 나오는 웹 앱 주소를 열어요. 이 주소를 공유하면 학생도 같은 화면을 쓸 수 있어요.' },
+]
 
-A열에 학생 이름, B열에 출석 여부(출석/결석)를 적을 거야.
-D1 셀에 =COUNTIF(B:B,"출석") 으로 출석 인원,
-D2 셀에 =COUNTIF(B:B,"결석") 으로 결석 인원이 자동 계산되게 해줘.
-B열은 데이터 확인 기능으로 "출석"과 "결석"만 고를 수 있게 하는 방법도 알려줘.`
+const attendancePrep = '"학생명단" 시트: A1에 "이름", A2부터 학생 이름 입력 / "출석부" 시트: 비워두면 자동으로 기록돼요.'
 
-const graderPrompt = `구글 스프레드시트와 앱스크립트로 객관식 자동채점기를 만들고 싶어.
+const attendanceCodeGs = `function doGet() {
+  return HtmlService.createHtmlOutputFromFile('index');
+}
 
-1행에는 문제별 정답을 적고, 2행부터는 학생 이름과 답안을 적을 거야.
-정답과 학생 답안을 한 칸씩 비교해서 맞은 개수를 점수 열에 자동으로 적어주는
-앱스크립트 코드를 만들어줘. 코딩을 처음 배우는 사람도 따라 할 수 있게 설명해줘.`
+function getStudents() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('학생명단');
+  if (sheet.getLastRow() < 2) return [];
+  return sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().flat().filter(String);
+}
 
-const groupsPrompt = `구글 스프레드시트와 앱스크립트로 모둠 자동 편성기를 만들고 싶어.
+function saveAttendance(records) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('출석부');
+  const today = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
+  records.forEach(function(record) {
+    sheet.appendRow([today, record.name, record.present ? '출석' : '결석']);
+  });
+  const presentCount = records.filter(function(record) { return record.present; }).length;
+  return presentCount + '명 / 전체 ' + records.length + '명';
+}`
 
-A열에 적은 학생 이름을 무작위로 섞어서 내가 정한 인원수만큼 모둠으로 나누고,
-결과를 새 시트에 모둠별로 정리해주는 앱스크립트 코드를 만들어줘.
-버튼을 눌러 실행하는 방법도 알려줘.`
+const attendanceIndexHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: sans-serif; padding: 16px; }
+    .chip { margin: 4px; padding: 10px 14px; border-radius: 8px; border: 1px solid #ccc; font-size: 15px; }
+    .on { background: #e8f0fe; border-color: #1a73e8; color: #1a73e8; }
+    .off { background: #fde8e8; border-color: #d93025; color: #d93025; }
+    #save { margin-top: 12px; padding: 10px 20px; font-size: 15px; }
+  </style>
+</head>
+<body>
+  <h2>오늘의 출석부</h2>
+  <div id="list">명단을 불러오는 중...</div>
+  <button id="save" onclick="save()">출석 저장</button>
+  <p id="result"></p>
+  <script>
+    let students = [];
+    google.script.run.withSuccessHandler(function(names) {
+      students = names.map(function(name) { return { name: name, present: true }; });
+      draw();
+    }).getStudents();
 
-const timetablePrompt = `구글 스프레드시트와 앱스크립트로 시간표 생성기를 만들고 싶어.
+    function draw() {
+      document.getElementById('list').innerHTML = students.map(function(s, i) {
+        return '<button class="chip ' + (s.present ? 'on' : 'off') + '" onclick="toggle(' + i + ')">'
+          + s.name + ' · ' + (s.present ? '출석' : '결석') + '</button>';
+      }).join('');
+    }
+    function toggle(i) { students[i].present = !students[i].present; draw(); }
+    function save() {
+      google.script.run.withSuccessHandler(function(message) {
+        document.getElementById('result').textContent = '저장 완료! 출석 ' + message;
+      }).saveAttendance(students);
+    }
+  </script>
+</body>
+</html>`
 
-과목 이름과 주당 시수를 적어두면, 월~금 6교시 표에 과목을 무작위로 배치해서
-시간표 초안을 만들어주는 앱스크립트 코드를 만들어줘.
-빈 칸이 남으면 "-"로 표시해줘.`
+const graderPrep = '"정답표" 시트: 1행에 문제별 정답을 순서대로 입력 (A1, B1, C1...) / "결과" 시트: 비워두면 제출 기록이 자동으로 쌓여요.'
+
+const graderCodeGs = `function doGet() {
+  return HtmlService.createHtmlOutputFromFile('index');
+}
+
+function getQuestionCount() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('정답표');
+  return sheet.getLastColumn();
+}
+
+function submitAnswers(name, answersText) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const keySheet = ss.getSheetByName('정답표');
+  const key = keySheet.getRange(1, 1, 1, keySheet.getLastColumn()).getValues()[0]
+    .map(function(value) { return String(value).trim(); });
+  const answers = answersText.split(/[\\s,]+/).filter(String);
+
+  let score = 0;
+  key.forEach(function(answer, index) {
+    if (answers[index] === answer) score++;
+  });
+
+  ss.getSheetByName('결과').appendRow([new Date(), name, score + ' / ' + key.length]);
+  return score + ' / ' + key.length;
+}`
+
+const graderIndexHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: sans-serif; padding: 16px; }
+    input { display: block; width: 260px; margin: 8px 0; padding: 10px; font-size: 15px; }
+    button { padding: 10px 20px; font-size: 15px; }
+    #result { font-size: 20px; font-weight: bold; color: #1a73e8; }
+  </style>
+</head>
+<body>
+  <h2>객관식 답안 제출</h2>
+  <p id="info">문항 수를 불러오는 중...</p>
+  <input id="name" placeholder="이름">
+  <input id="answers" placeholder="답안 (예: 1, 3, 2, 4, 5)">
+  <button onclick="submitAnswers()">제출하고 채점받기</button>
+  <p id="result"></p>
+  <script>
+    google.script.run.withSuccessHandler(function(count) {
+      document.getElementById('info').textContent = '총 ' + count + '문항이에요. 답을 쉼표로 구분해 적어주세요.';
+    }).getQuestionCount();
+
+    function submitAnswers() {
+      const name = document.getElementById('name').value.trim();
+      const answers = document.getElementById('answers').value.trim();
+      if (!name || !answers) { alert('이름과 답안을 모두 적어주세요.'); return; }
+      google.script.run.withSuccessHandler(function(score) {
+        document.getElementById('result').textContent = name + ' 학생 점수: ' + score;
+      }).submitAnswers(name, answers);
+    }
+  </script>
+</body>
+</html>`
+
+const groupsPrep = '"학생명단" 시트: A1에 "이름", A2부터 학생 이름 입력 / "모둠편성" 시트: 비워두면 편성 결과가 자동으로 기록돼요.'
+
+const groupsCodeGs = `function doGet() {
+  return HtmlService.createHtmlOutputFromFile('index');
+}
+
+function makeGroups(size) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const listSheet = ss.getSheetByName('학생명단');
+  const names = listSheet.getRange(2, 1, listSheet.getLastRow() - 1, 1)
+    .getValues().flat().filter(String);
+
+  // 이름 순서를 무작위로 섞기
+  for (let i = names.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = names[i]; names[i] = names[j]; names[j] = temp;
+  }
+
+  const groups = [];
+  for (let i = 0; i < names.length; i += size) {
+    groups.push(names.slice(i, i + size));
+  }
+
+  const out = ss.getSheetByName('모둠편성');
+  out.clearContents();
+  groups.forEach(function(group, index) {
+    out.appendRow([(index + 1) + '모둠'].concat(group));
+  });
+  return groups;
+}`
+
+const groupsIndexHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: sans-serif; padding: 16px; }
+    input { width: 60px; padding: 8px; font-size: 15px; }
+    button { padding: 10px 20px; font-size: 15px; margin-left: 8px; }
+    .group { margin: 8px 0; padding: 10px 14px; background: #f5f7fb; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h2>모둠 자동 편성기</h2>
+  <label>모둠당 인원 <input id="size" type="number" value="4" min="2"></label>
+  <button onclick="make()">모둠 편성하기</button>
+  <div id="result"></div>
+  <script>
+    function make() {
+      const size = Number(document.getElementById('size').value) || 4;
+      document.getElementById('result').textContent = '편성 중...';
+      google.script.run.withSuccessHandler(function(groups) {
+        document.getElementById('result').innerHTML = groups.map(function(group, i) {
+          return '<div class="group"><b>' + (i + 1) + '모둠</b> · ' + group.join(', ') + '</div>';
+        }).join('');
+      }).makeGroups(size);
+    }
+  </script>
+</body>
+</html>`
+
+const timetablePrep = '"과목표" 시트: A1에 "과목", B1에 "시수", 2행부터 과목 이름과 주당 시수 입력 / "시간표" 시트: 비워두면 결과가 자동으로 기록돼요.'
+
+const timetableCodeGs = `function doGet() {
+  return HtmlService.createHtmlOutputFromFile('index');
+}
+
+function makeTimetable() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const subjectSheet = ss.getSheetByName('과목표');
+  const rows = subjectSheet.getRange(2, 1, subjectSheet.getLastRow() - 1, 2).getValues();
+
+  const lessons = [];
+  rows.forEach(function(row) {
+    for (let i = 0; i < Number(row[1] || 0); i++) lessons.push(String(row[0]));
+  });
+
+  const slots = [];
+  for (let day = 0; day < 5; day++) {
+    for (let period = 0; period < 6; period++) slots.push([day, period]);
+  }
+  for (let i = slots.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = slots[i]; slots[i] = slots[j]; slots[j] = temp;
+  }
+
+  const grid = [];
+  for (let period = 0; period < 6; period++) grid.push(['-', '-', '-', '-', '-']);
+  lessons.slice(0, 30).forEach(function(lesson, index) {
+    grid[slots[index][1]][slots[index][0]] = lesson;
+  });
+
+  const out = ss.getSheetByName('시간표');
+  out.clearContents();
+  out.appendRow(['교시', '월', '화', '수', '목', '금']);
+  grid.forEach(function(row, index) {
+    out.appendRow([(index + 1) + '교시'].concat(row));
+  });
+  return grid;
+}`
+
+const timetableIndexHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: sans-serif; padding: 16px; }
+    button { padding: 10px 20px; font-size: 15px; }
+    table { margin-top: 12px; border-collapse: collapse; }
+    th, td { padding: 8px 12px; border: 1px solid #ccc; text-align: center; }
+    th { background: #f5f7fb; }
+  </style>
+</head>
+<body>
+  <h2>시간표 생성기</h2>
+  <button onclick="make()">시간표 만들기</button>
+  <div id="result"></div>
+  <script>
+    const days = ['월', '화', '수', '목', '금'];
+    function make() {
+      document.getElementById('result').textContent = '만드는 중...';
+      google.script.run.withSuccessHandler(function(grid) {
+        let html = '<table><tr><th>교시</th>';
+        days.forEach(function(day) { html += '<th>' + day + '</th>'; });
+        html += '</tr>';
+        grid.forEach(function(row, period) {
+          html += '<tr><th>' + (period + 1) + '</th>';
+          row.forEach(function(subject) { html += '<td>' + subject + '</td>'; });
+          html += '</tr>';
+        });
+        document.getElementById('result').innerHTML = html + '</table>';
+      }).makeTimetable();
+    }
+  </script>
+</body>
+</html>`
+
+function WebAppCode({ prep, codeGs, indexHtml }) {
+  return (
+    <details className="tool-recipe">
+      <summary>웹 앱 코드 받기 (Code.gs · index.html)</summary>
+      <p className="example-prompt"><strong>준비할 시트</strong>{prep}</p>
+      <CodeBlock label="Code.gs" code={codeGs} />
+      <CodeBlock label="index.html" code={indexHtml} />
+    </details>
+  )
+}
 
 const defaultStudents = ['김하늘', '이도윤', '박서준', '최지우', '정민준', '한소율']
 
@@ -69,8 +325,8 @@ function AttendanceTool() {
   return (
     <section id="tool-attendance" className="lotto-lab">
       <div className="lotto-lab-heading">
-        <h2>자동 출석부</h2>
-        <p>학생 이름을 누르면 출석과 결석이 바뀌어요. × 버튼으로 명단에서 뺄 수 있어요.</p>
+        <h2>자동 출석부 웹앱</h2>
+        <p>완성된 웹 앱은 이렇게 작동해요. 학생 이름을 누르면 출석과 결석이 바뀌고, 실제 웹 앱에서는 저장 버튼을 누르면 스프레드시트에 오늘 날짜로 기록돼요.</p>
       </div>
       <div className="lotto-actions">
         {students.map(({ name, present }) => (
@@ -107,10 +363,7 @@ function AttendanceTool() {
       <p className="lotto-response" aria-live="polite">
         전체 {students.length}명 / 출석 {presentCount}명 / 결석 {students.length - presentCount}명
       </p>
-      <details className="tool-recipe">
-        <summary>내 구글 시트로 만들기 (프롬프트 보기)</summary>
-        <CodeBlock label="AI에게 요청할 프롬프트" code={attendancePrompt} />
-      </details>
+      <WebAppCode prep={attendancePrep} codeGs={attendanceCodeGs} indexHtml={attendanceIndexHtml} />
     </section>
   )
 }
@@ -145,8 +398,8 @@ function QuizGraderTool() {
   return (
     <section id="tool-grader" className="lotto-lab">
       <div className="lotto-lab-heading">
-        <h2>객관식 자동채점기</h2>
-        <p>정답표와 학생 답안을 쉼표로 구분해 적으면 점수가 실시간으로 계산돼요.</p>
+        <h2>객관식 자동채점기 웹앱</h2>
+        <p>완성된 웹 앱에서는 학생이 이름과 답안을 제출하면 자동으로 채점되고 결과가 시트에 쌓여요. 아래에서 채점 원리를 미리 체험해보세요.</p>
       </div>
       <div className="form-field">
         <label htmlFor="grader-key">정답표 ({key.length}문항)</label>
@@ -175,10 +428,7 @@ function QuizGraderTool() {
       <div className="lotto-actions">
         <button className="button button-secondary" type="button" onClick={addRow}>학생 줄 추가</button>
       </div>
-      <details className="tool-recipe">
-        <summary>내 구글 시트로 만들기 (프롬프트 보기)</summary>
-        <CodeBlock label="AI에게 요청할 프롬프트" code={graderPrompt} />
-      </details>
+      <WebAppCode prep={graderPrep} codeGs={graderCodeGs} indexHtml={graderIndexHtml} />
     </section>
   )
 }
@@ -202,8 +452,8 @@ function GroupMakerTool() {
   return (
     <section id="tool-groups" className="lotto-lab">
       <div className="lotto-lab-heading">
-        <h2>모둠 자동 편성기</h2>
-        <p>학생 이름을 한 줄에 한 명씩 적고, 모둠 인원을 정한 뒤 버튼을 누르세요.</p>
+        <h2>모둠 자동 편성기 웹앱</h2>
+        <p>완성된 웹 앱에서는 시트의 학생 명단을 읽어 모둠을 나누고 결과를 "모둠편성" 시트에 저장해요. 아래에서 편성 방식을 미리 체험해보세요.</p>
       </div>
       <div className="form-field">
         <label htmlFor="groups-names">학생 명단</label>
@@ -241,10 +491,7 @@ function GroupMakerTool() {
           ))}
         </div>
       )}
-      <details className="tool-recipe">
-        <summary>내 구글 시트로 만들기 (프롬프트 보기)</summary>
-        <CodeBlock label="AI에게 요청할 프롬프트" code={groupsPrompt} />
-      </details>
+      <WebAppCode prep={groupsPrep} codeGs={groupsCodeGs} indexHtml={groupsIndexHtml} />
     </section>
   )
 }
@@ -296,8 +543,8 @@ function TimetableTool() {
   return (
     <section id="tool-timetable" className="lotto-lab">
       <div className="lotto-lab-heading">
-        <h2>시간표 생성기</h2>
-        <p>과목과 주당 시수를 정한 뒤 버튼을 누르면 월~금 6교시 시간표 초안이 만들어져요.</p>
+        <h2>시간표 생성기 웹앱</h2>
+        <p>완성된 웹 앱에서는 "과목표" 시트를 읽어 시간표를 만들고 "시간표" 시트에 저장해요. 아래에서 생성 방식을 미리 체험해보세요.</p>
       </div>
       {subjects.map((subject, index) => (
         <div className="tool-grader-row" key={index}>
@@ -347,10 +594,7 @@ function TimetableTool() {
           </table>
         </div>
       )}
-      <details className="tool-recipe">
-        <summary>내 구글 시트로 만들기 (프롬프트 보기)</summary>
-        <CodeBlock label="AI에게 요청할 프롬프트" code={timetablePrompt} />
-      </details>
+      <WebAppCode prep={timetablePrep} codeGs={timetableCodeGs} indexHtml={timetableIndexHtml} />
     </section>
   )
 }
@@ -360,10 +604,11 @@ function PracticeTemplatesPage() {
     <section className="page-section">
       <div className="container narrow-container">
         <p className="eyebrow">실습 / 자료실</p>
-        <h1>바로 쓰는 템플릿</h1>
+        <h1>바로 쓰는 템플릿: 앱스크립트 웹앱</h1>
         <p className="page-description">
-          아래 템플릿은 이 페이지에서 바로 작동해요. 수업에서 그대로 써보고,
-          각 템플릿의 프롬프트를 복사하면 내 구글 시트 버전도 만들 수 있어요.
+          네 가지 템플릿 모두 앱스크립트 웹 앱으로 만들 수 있는 완성 코드가 준비되어 있어요.
+          이 페이지에서 작동 모습을 미리 체험하고, Code.gs와 index.html을 복사해
+          내 스프레드시트에 붙여넣으면 똑같은 웹 앱이 완성돼요.
         </p>
 
         <div className="card-grid page-link-grid is-four-up">
@@ -372,10 +617,14 @@ function PracticeTemplatesPage() {
               <span className="step-number" aria-hidden="true">{index + 1}</span>
               <h2>{title}</h2>
               <p>{description}</p>
-              <a className="text-link" href={anchor}>바로 사용하기 <span aria-hidden="true">↓</span></a>
+              <a className="text-link" href={anchor}>체험하고 코드 받기 <span aria-hidden="true">↓</span></a>
             </article>
           ))}
         </div>
+
+        <h2>웹 앱으로 배포하는 공통 순서</h2>
+        <p>어떤 템플릿이든 배포 방법은 같아요. 한 번 익혀두면 네 가지 모두 만들 수 있어요.</p>
+        <StepGuide steps={deploySteps} />
 
         <AttendanceTool />
         <QuizGraderTool />
