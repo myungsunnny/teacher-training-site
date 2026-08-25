@@ -5,6 +5,7 @@ const navigation = [
   ['/', '홈'],
   ['/vibe-coding', '바이브 코딩 기초'],
   ['/sheets-appsscript', '구글스프레드시트 X 앱스크립트'],
+  ['/lesson-plan', '수업 교안 만들기'],
   ['/practice', '실습 / 자료실'],
   ['/faq', 'FAQ'],
 ]
@@ -87,6 +88,7 @@ function Footer() {
           <ul>
             <li><Link to="/vibe-coding">바이브 코딩 기초</Link></li>
             <li><Link to="/sheets-appsscript">시트 × 앱스크립트</Link></li>
+            <li><Link to="/lesson-plan">수업 교안 만들기</Link></li>
             <li><Link to="/practice">실습 / 자료실</Link></li>
           </ul>
         </div>

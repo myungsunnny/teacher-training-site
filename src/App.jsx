@@ -12,6 +12,7 @@ import SheetsBasicsPage from './pages/SheetsBasicsPage.jsx'
 import SheetsAppsScript101Page from './pages/SheetsAppsScript101Page.jsx'
 import SheetsRecipesPage from './pages/SheetsRecipesPage.jsx'
 import GeminiGemsPage from './pages/GeminiGemsPage.jsx'
+import LessonPlanPage from './pages/LessonPlanPage.jsx'
 import PracticeTemplatesPage from './pages/PracticeTemplatesPage.jsx'
 import PracticeGalleryPage from './pages/PracticeGalleryPage.jsx'
 import FaqPage from './pages/FaqPage.jsx'
@@ -67,6 +68,7 @@ const leafRoutes = [
   ['sheets-appsscript/appsscript-101', SheetsAppsScript101Page],
   ['sheets-appsscript/recipes', SheetsRecipesPage],
   ['sheets-appsscript/vibe-benefits', SheetsRecipesPage],
+  ['lesson-plan', LessonPlanPage],
   ['practice/gemini-gems', GeminiGemsPage],
   ['practice/templates', PracticeTemplatesPage],
   ['practice/gallery', PracticeGalleryPage],
