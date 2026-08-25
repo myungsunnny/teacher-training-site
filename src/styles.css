@@ -1186,6 +1186,15 @@ h3 {
   background: var(--color-bg-soft);
 }
 
+.design-option-steps {
+  margin: 0 0 1.25rem;
+  padding-left: 1.2rem;
+}
+
+.design-option-steps li {
+  margin-bottom: 0.5rem;
+}
+
 .compare-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

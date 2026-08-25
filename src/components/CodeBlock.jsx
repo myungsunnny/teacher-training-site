@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-function CodeBlock({ label, code }) {
+function CodeBlock({ label, code, wrap = false }) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
@@ -21,7 +21,7 @@ function CodeBlock({ label, code }) {
           {copied ? '복사됨!' : '복사'}
         </button>
       </div>
-      <pre><code>{code}</code></pre>
+      <pre style={wrap ? { whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } : undefined}><code>{code}</code></pre>
     </div>
   )
 }
