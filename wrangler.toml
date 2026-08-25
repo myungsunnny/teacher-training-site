@@ -1,0 +1,8 @@
+name = "teacher-training-site"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-08-25"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "teacher-training-gallery"
+database_id = "cf75ad97-d12d-443c-8a99-bd98ae83518c"
