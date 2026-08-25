@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Callout from '../components/Callout.jsx'
 import CodeBlock from '../components/CodeBlock.jsx'
 import StepGuide from '../components/StepGuide.jsx'
 
@@ -19,27 +20,50 @@ const templates = [
 ]
 
 const deploySteps = [
-  { title: '구글 스프레드시트 만들기', description: '새 스프레드시트를 만들고, 각 템플릿의 "준비할 시트"에 적힌 이름대로 시트(탭)를 만들어요.' },
-  { title: 'Apps Script 열기', description: '스프레드시트 메뉴에서 확장 프로그램 → Apps Script를 선택해요.' },
-  { title: '코드 붙여넣기', description: 'Code.gs에 백엔드 코드를 붙여넣고, 파일 추가(+) → HTML로 index 파일을 만들어 index.html 코드를 붙여넣어요.' },
-  { title: '웹 앱으로 배포하기', description: '배포 → 새 배포 → 유형: 웹 앱을 선택해요. 처음 실행할 때 권한 승인 화면이 나오면 내용을 확인하고 승인해요.' },
-  { title: '주소 열어 사용하기', description: '배포가 끝나면 나오는 웹 앱 주소를 열어요. 이 주소를 공유하면 학생도 같은 화면을 쓸 수 있어요.' },
+  { title: '새 스프레드시트 만들기', description: '브라우저 주소창에 sheets.new 를 입력하면 새 스프레드시트가 바로 열려요. 시트(탭)는 따로 만들 필요 없어요 — 코드의 "초기설정"이 자동으로 만들어줘요.' },
+  { title: 'Apps Script 열기', description: '스프레드시트 위쪽 메뉴에서 확장 프로그램 → Apps Script를 누르면 새 탭에 코드 편집기가 열려요.' },
+  { title: 'Code.gs 붙여넣기', description: '편집기에 원래 있던 function myFunction() { } 코드를 모두 지우고, 템플릿의 Code.gs 코드를 붙여넣은 뒤 저장(Ctrl+S 또는 💾 아이콘)해요.' },
+  { title: 'index 파일 만들기', description: '왼쪽 파일 목록의 + 버튼 → HTML을 누르고 파일 이름을 index 로 지어요(.html은 자동으로 붙어요). 안의 내용을 모두 지우고 템플릿의 index.html 코드를 붙여넣고 저장해요.' },
+  { title: '초기설정 실행하기', description: '편집기 위쪽의 함수 선택 상자에서 "초기설정"을 고르고 실행(▶) 버튼을 눌러요. 필요한 시트와 예시 자료가 스프레드시트에 자동으로 만들어져요.' },
+  { title: '권한 승인하기', description: '처음 실행하면 "승인 필요" 창이 떠요. 내 계정 선택 → "Google에서 확인하지 않은 앱" 화면이 나오면 겁먹지 말고 고급 → 프로젝트로 이동 → 허용 순서로 눌러요. 내가 방금 붙여넣은 코드라서 안심해도 돼요.' },
+  { title: '웹 앱으로 배포하기', description: '오른쪽 위 배포 → 새 배포를 누르고, 톱니바퀴(⚙)에서 유형을 웹 앱으로 선택해요. "실행 계정"은 나, "액세스 권한"은 혼자 쓰면 "나만", 학생과 함께 쓰면 "링크가 있는 모든 사용자"를 고르고 배포를 눌러요.' },
+  { title: '주소 열어 사용하기', description: '화면에 나온 웹 앱 URL을 복사해 새 탭에서 열어요. 이 주소를 학생이나 동료에게 공유하면 같은 화면을 쓸 수 있어요.' },
 ]
 
-const attendancePrep = '"학생명단" 시트: A1에 "이름", A2부터 학생 이름 입력 / "출석부" 시트: 비워두면 자동으로 기록돼요.'
+const attendancePrep = '"초기설정"을 한 번 실행하면 "학생명단"과 "출석부" 시트가 자동으로 만들어지고 예시 학생 3명이 들어가요. 학생명단 시트의 이름만 우리 반 학생으로 바꿔주세요.'
 
 const attendanceCodeGs = `function doGet() {
   return HtmlService.createHtmlOutputFromFile('index');
 }
 
+// 처음 한 번만 실행하세요. 필요한 시트를 자동으로 만들어줘요.
+function 초기설정() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const list = getSheet_(ss, '학생명단', ['이름']);
+  getSheet_(ss, '출석부', ['날짜', '이름', '출석여부']);
+  if (list.getLastRow() < 2) {
+    [['김하늘'], ['이도윤'], ['박서준']].forEach(function(row) { list.appendRow(row); });
+  }
+}
+
+// 시트가 없으면 만들어서 돌려주는 도우미 함수예요.
+function getSheet_(ss, name, headers) {
+  let sheet = ss.getSheetByName(name);
+  if (!sheet) {
+    sheet = ss.insertSheet(name);
+    if (headers) sheet.appendRow(headers);
+  }
+  return sheet;
+}
+
 function getStudents() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('학생명단');
+  const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), '학생명단', ['이름']);
   if (sheet.getLastRow() < 2) return [];
   return sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().flat().filter(String);
 }
 
 function saveAttendance(records) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('출석부');
+  const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), '출석부', ['날짜', '이름', '출석여부']);
   const today = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
   records.forEach(function(record) {
     sheet.appendRow([today, record.name, record.present ? '출석' : '결석']);
@@ -88,20 +112,42 @@ const attendanceIndexHtml = `<!DOCTYPE html>
 </body>
 </html>`
 
-const graderPrep = '"정답표" 시트: 1행에 문제별 정답을 순서대로 입력 (A1, B1, C1...) / "결과" 시트: 비워두면 제출 기록이 자동으로 쌓여요.'
+const graderPrep = '"초기설정"을 한 번 실행하면 "정답표"(예시 정답 5문항)와 "결과" 시트가 자동으로 만들어져요. 정답표 1행의 정답만 실제 시험 정답으로 바꿔주세요.'
 
 const graderCodeGs = `function doGet() {
   return HtmlService.createHtmlOutputFromFile('index');
 }
 
+// 처음 한 번만 실행하세요. 필요한 시트를 자동으로 만들어줘요.
+function 초기설정() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const key = getSheet_(ss, '정답표');
+  if (key.getLastRow() === 0) {
+    key.getRange(1, 1, 1, 5).setValues([['1', '3', '2', '4', '5']]);
+  }
+  getSheet_(ss, '결과', ['제출시각', '이름', '점수']);
+}
+
+// 시트가 없으면 만들어서 돌려주는 도우미 함수예요.
+function getSheet_(ss, name, headers) {
+  let sheet = ss.getSheetByName(name);
+  if (!sheet) {
+    sheet = ss.insertSheet(name);
+    if (headers) sheet.appendRow(headers);
+  }
+  return sheet;
+}
+
 function getQuestionCount() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('정답표');
+  const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), '정답표');
+  if (sheet.getLastColumn() === 0) 초기설정();
   return sheet.getLastColumn();
 }
 
 function submitAnswers(name, answersText) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const keySheet = ss.getSheetByName('정답표');
+  const keySheet = getSheet_(ss, '정답표');
+  if (keySheet.getLastColumn() === 0) 초기설정();
   const key = keySheet.getRange(1, 1, 1, keySheet.getLastColumn()).getValues()[0]
     .map(function(value) { return String(value).trim(); });
   const answers = answersText.split(/[\\s,]+/).filter(String);
@@ -111,7 +157,8 @@ function submitAnswers(name, answersText) {
     if (answers[index] === answer) score++;
   });
 
-  ss.getSheetByName('결과').appendRow([new Date(), name, score + ' / ' + key.length]);
+  getSheet_(ss, '결과', ['제출시각', '이름', '점수'])
+    .appendRow([new Date(), name, score + ' / ' + key.length]);
   return score + ' / ' + key.length;
 }`
 
@@ -150,15 +197,37 @@ const graderIndexHtml = `<!DOCTYPE html>
 </body>
 </html>`
 
-const groupsPrep = '"학생명단" 시트: A1에 "이름", A2부터 학생 이름 입력 / "모둠편성" 시트: 비워두면 편성 결과가 자동으로 기록돼요.'
+const groupsPrep = '"초기설정"을 한 번 실행하면 "학생명단"(예시 8명)과 "모둠편성" 시트가 자동으로 만들어져요. 이름만 우리 반 학생으로 바꿔주세요.'
 
 const groupsCodeGs = `function doGet() {
   return HtmlService.createHtmlOutputFromFile('index');
 }
 
+// 처음 한 번만 실행하세요. 필요한 시트를 자동으로 만들어줘요.
+function 초기설정() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const list = getSheet_(ss, '학생명단', ['이름']);
+  getSheet_(ss, '모둠편성');
+  if (list.getLastRow() < 2) {
+    [['김하늘'], ['이도윤'], ['박서준'], ['최지우'], ['정민준'], ['한소율'], ['오유진'], ['강도현']]
+      .forEach(function(row) { list.appendRow(row); });
+  }
+}
+
+// 시트가 없으면 만들어서 돌려주는 도우미 함수예요.
+function getSheet_(ss, name, headers) {
+  let sheet = ss.getSheetByName(name);
+  if (!sheet) {
+    sheet = ss.insertSheet(name);
+    if (headers) sheet.appendRow(headers);
+  }
+  return sheet;
+}
+
 function makeGroups(size) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const listSheet = ss.getSheetByName('학생명단');
+  const listSheet = getSheet_(ss, '학생명단', ['이름']);
+  if (listSheet.getLastRow() < 2) 초기설정();
   const names = listSheet.getRange(2, 1, listSheet.getLastRow() - 1, 1)
     .getValues().flat().filter(String);
 
@@ -173,7 +242,7 @@ function makeGroups(size) {
     groups.push(names.slice(i, i + size));
   }
 
-  const out = ss.getSheetByName('모둠편성');
+  const out = getSheet_(ss, '모둠편성');
   out.clearContents();
   groups.forEach(function(group, index) {
     out.appendRow([(index + 1) + '모둠'].concat(group));
@@ -202,6 +271,10 @@ const groupsIndexHtml = `<!DOCTYPE html>
       const size = Number(document.getElementById('size').value) || 4;
       document.getElementById('result').textContent = '편성 중...';
       google.script.run.withSuccessHandler(function(groups) {
+        if (!groups.length) {
+          document.getElementById('result').textContent = '학생명단 시트에 이름을 추가한 뒤 다시 눌러주세요.';
+          return;
+        }
         document.getElementById('result').innerHTML = groups.map(function(group, i) {
           return '<div class="group"><b>' + (i + 1) + '모둠</b> · ' + group.join(', ') + '</div>';
         }).join('');
@@ -211,15 +284,37 @@ const groupsIndexHtml = `<!DOCTYPE html>
 </body>
 </html>`
 
-const timetablePrep = '"과목표" 시트: A1에 "과목", B1에 "시수", 2행부터 과목 이름과 주당 시수 입력 / "시간표" 시트: 비워두면 결과가 자동으로 기록돼요.'
+const timetablePrep = '"초기설정"을 한 번 실행하면 "과목표"(예시 과목 8개)와 "시간표" 시트가 자동으로 만들어져요. 과목과 시수만 우리 반에 맞게 고쳐주세요.'
 
 const timetableCodeGs = `function doGet() {
   return HtmlService.createHtmlOutputFromFile('index');
 }
 
+// 처음 한 번만 실행하세요. 필요한 시트를 자동으로 만들어줘요.
+function 초기설정() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const subjects = getSheet_(ss, '과목표', ['과목', '시수']);
+  getSheet_(ss, '시간표');
+  if (subjects.getLastRow() < 2) {
+    [['국어', 6], ['수학', 5], ['영어', 3], ['사회', 3], ['과학', 3], ['체육', 3], ['음악', 2], ['미술', 2]]
+      .forEach(function(row) { subjects.appendRow(row); });
+  }
+}
+
+// 시트가 없으면 만들어서 돌려주는 도우미 함수예요.
+function getSheet_(ss, name, headers) {
+  let sheet = ss.getSheetByName(name);
+  if (!sheet) {
+    sheet = ss.insertSheet(name);
+    if (headers) sheet.appendRow(headers);
+  }
+  return sheet;
+}
+
 function makeTimetable() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const subjectSheet = ss.getSheetByName('과목표');
+  const subjectSheet = getSheet_(ss, '과목표', ['과목', '시수']);
+  if (subjectSheet.getLastRow() < 2) 초기설정();
   const rows = subjectSheet.getRange(2, 1, subjectSheet.getLastRow() - 1, 2).getValues();
 
   const lessons = [];
@@ -242,7 +337,7 @@ function makeTimetable() {
     grid[slots[index][1]][slots[index][0]] = lesson;
   });
 
-  const out = ss.getSheetByName('시간표');
+  const out = getSheet_(ss, '시간표');
   out.clearContents();
   out.appendRow(['교시', '월', '화', '수', '목', '금']);
   grid.forEach(function(row, index) {
@@ -291,7 +386,7 @@ function WebAppCode({ prep, codeGs, indexHtml }) {
   return (
     <details className="tool-recipe">
       <summary>웹 앱 코드 받기 (Code.gs · index.html)</summary>
-      <p className="example-prompt"><strong>준비할 시트</strong>{prep}</p>
+      <p className="example-prompt"><strong>시트 자동 생성</strong>{prep}</p>
       <CodeBlock label="Code.gs" code={codeGs} />
       <CodeBlock label="index.html" code={indexHtml} />
     </details>
@@ -623,8 +718,18 @@ function PracticeTemplatesPage() {
         </div>
 
         <h2>웹 앱으로 배포하는 공통 순서</h2>
-        <p>어떤 템플릿이든 배포 방법은 같아요. 한 번 익혀두면 네 가지 모두 만들 수 있어요.</p>
+        <p>어떤 템플릿이든 배포 방법은 같아요. 한 번 익혀두면 네 가지 모두 만들 수 있어요. 시트(탭)도 코드가 자동으로 만들어주니, 스프레드시트는 빈 채로 시작하면 돼요.</p>
         <StepGuide steps={deploySteps} />
+
+        <Callout tone="tip" title="코드를 고친 뒤에는 새 버전으로 다시 배포하세요">
+          코드를 수정하고 저장만 하면 웹 앱에는 반영되지 않아요. 배포 → 배포 관리 → 연필(수정) 아이콘 →
+          버전을 &ldquo;새 버전&rdquo;으로 바꾸고 배포를 눌러야 바뀐 내용이 웹 앱 주소에 적용돼요.
+        </Callout>
+
+        <Callout tone="warning" title="학생 개인정보는 넣지 마세요">
+          연습할 때는 예시 이름을 그대로 쓰고, 실제로 사용할 때도 웹 앱 주소를 공개 게시판에 올리지 마세요.
+          &ldquo;액세스 권한&rdquo;을 &ldquo;링크가 있는 모든 사용자&rdquo;로 배포하면 주소를 아는 누구나 열 수 있어요.
+        </Callout>
 
         <AttendanceTool />
         <QuizGraderTool />
