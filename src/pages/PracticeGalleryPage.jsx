@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import Callout from '../components/Callout.jsx'
 
-const emptyForm = { title: '', author: '', description: '', link: '' }
+const emptyForm = { title: '', description: '', link: '' }
 
 function SubmitForm({ onSubmitted }) {
   const [form, setForm] = useState(emptyForm)
@@ -36,16 +36,12 @@ function SubmitForm({ onSubmitted }) {
       <span className="callout-icon" aria-hidden="true">🙌</span>
       <div style={{ flex: 1 }}>
         <p className="callout-title">선생님이 만든 결과물을 올려주세요</p>
-        <p>결과물 제목, 이름(또는 학교), 링크를 적어 제출하면 바로 아래 갤러리에 올라가요.</p>
+        <p>결과물 제목, 링크를 적어 제출하면 바로 아래 갤러리에 올라가요.</p>
 
         <form onSubmit={handleSubmit}>
           <div className="form-field">
             <label htmlFor="work-title">결과물 제목</label>
             <input id="work-title" className="form-input" value={form.title} onChange={updateField('title')} required maxLength={80} />
-          </div>
-          <div className="form-field">
-            <label htmlFor="work-author">이름 또는 학교</label>
-            <input id="work-author" className="form-input" value={form.author} onChange={updateField('author')} required maxLength={60} />
           </div>
           <div className="form-field">
             <label htmlFor="work-link">결과물 링크</label>
@@ -120,7 +116,7 @@ function PracticeGalleryPage() {
                   미리보기
                 </div>
                 <h3>{work.title}</h3>
-                <p className="card-example"><strong>{work.author}</strong>{work.description}</p>
+                {work.description && <p>{work.description}</p>}
                 <a className="button button-secondary" href={work.link} target="_blank" rel="noreferrer">결과물 보러가기</a>
               </article>
             ))}
